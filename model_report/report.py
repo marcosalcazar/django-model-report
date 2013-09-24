@@ -23,6 +23,7 @@ from model_report.export_pdf import render_to_pdf
 
 
 import arial10
+from inspect import getmodule
 
 
 class FitSheetWrapper(object):
@@ -104,15 +105,27 @@ class ReportClassManager(object):
     """
 
     _register = OrderedDict()
+    _register_by_apps = OrderedDict()
 
     def __init__(self):
         self._register = OrderedDict()
+        self._register_by_apps = OrderedDict()
 
     def register(self, slug, rclass):
         if slug in self._register:
             raise ValueError('Slug already exists: %s' % slug)
         setattr(rclass, 'slug', slug)
         self._register[slug] = rclass
+
+        try:
+            # Guess module name and add the class to the other dict
+            module_name = getmodule(rclass).__name__.split('.')[0]
+            if module_name in self._register_by_apps:
+                self._register_by_apps[module_name].append(rclass)
+            else:
+                self._register_by_apps[module_name] = [rclass, ]
+        except:
+            pass
 
     def get_report(self, slug):
         # return class
@@ -121,6 +134,10 @@ class ReportClassManager(object):
     def get_reports(self):
         # return clasess
         return self._register.values()
+
+    def get_reports_from_app(self, app):
+        # return clasess defined in app
+        return self._register_by_apps[app]
 
 
 reports = ReportClassManager()
@@ -402,7 +419,6 @@ class ReportAdmin(object):
             form_groupby = self.get_form_groupby(context_request)
             form_filter = self.get_form_filter(context_request)
             form_config = self.get_form_config(context_request)
-
             column_labels = self.get_column_names(filter_related_fields)
             report_rows = []
             groupby_data = None
@@ -420,7 +436,7 @@ class ReportAdmin(object):
                 'column_labels': column_labels,
                 'report_rows': report_rows,
             }
-
+            
             if context_request.GET:
                 groupby_data = form_groupby.get_cleaned_data() if form_groupby else None
                 filter_kwargs = filter_related_fields or form_filter.get_filter_kwargs()
@@ -435,7 +451,7 @@ class ReportAdmin(object):
 
                 if len(report_anchors) <= 1:
                     report_anchors = []
-
+                
                 if self.type == 'chart' and groupby_data and groupby_data['groupby']:
                     config = form_config.get_config_data()
                     if config:

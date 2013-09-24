@@ -33,3 +33,13 @@ def report(request, slug):
     
     report = report_class(request=request)
     return report.render(request, extra_context=context)
+
+
+def report_list_for_app(request, app):
+    """
+    This view render all reports registered in the specified app
+    """
+    context = {
+        'report_list': reports.get_reports_from_app(app)
+    }
+    return render_to_response('model_report/report_list.html', context, context_instance=RequestContext(request))
